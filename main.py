@@ -67,3 +67,70 @@ async def create_task(request: Request):
     tasks.append(new_task)
 
     return new_task
+
+
+@app.put("/tasks/{task_id}")
+async def update_task(task_id: int, request: Request):
+    body = await request.json()
+
+    if not body:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Request body cannot be empty"}
+        )
+
+    task_to_update = None
+
+    for task in tasks:
+        if task["id"] == task_id:
+            task_to_update = task
+            break
+
+    if task_to_update is None:
+        return JSONResponse(
+            status_code=404,
+            content={"error": f"Task {task_id} not found"}
+        )
+
+    if "title" in body:
+        title = body["title"]
+
+        if not isinstance(title, str) or not title.strip():
+            return JSONResponse(
+                status_code=400,
+                content={"error": "Title must be a non-empty string"}
+            )
+
+        task_to_update["title"] = title.strip()
+
+    if "done" in body:
+        done = body["done"]
+
+        if not isinstance(done, bool):
+            return JSONResponse(
+                status_code=400,
+                content={"error": "Done must be true or false"}
+            )
+
+        task_to_update["done"] = done
+
+    if "title" not in body and "done" not in body:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Body must contain title and/or done"}
+        )
+
+    return task_to_update
+
+
+@app.delete("/tasks/{task_id}", status_code=204)
+def delete_task(task_id: int):
+    for task in tasks:
+        if task["id"] == task_id:
+            tasks.remove(task)
+            return
+
+    return JSONResponse(
+        status_code=404,
+        content={"error": f"Task {task_id} not found"}
+    )
