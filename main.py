@@ -146,17 +146,10 @@ async def update_task(task_id: int, request: Request):
             content={"error": "Request body cannot be empty"}
         )
 
-    task_to_update = None
-
-    for task in tasks:
-        if task["id"] == task_id:
-            task_to_update = task
-            break
-
-    if task_to_update is None:
+    if "title" not in body and "done" not in body:
         return JSONResponse(
-            status_code=404,
-            content={"error": f"Task {task_id} not found"}
+            status_code=400,
+            content={"error": "Body must contain title and/or done"}
         )
 
     if "title" in body:
@@ -168,8 +161,6 @@ async def update_task(task_id: int, request: Request):
                 content={"error": "Title must be a non-empty string"}
             )
 
-        task_to_update["title"] = title.strip()
-
     if "done" in body:
         done = body["done"]
 
@@ -179,25 +170,69 @@ async def update_task(task_id: int, request: Request):
                 content={"error": "Done must be true or false"}
             )
 
-        task_to_update["done"] = done
+    connection = sqlite3.connect("tasks.db")
+    cursor = connection.cursor()
 
-    if "title" not in body and "done" not in body:
+    cursor.execute(
+        "SELECT id, title, done FROM tasks WHERE id = ?",
+        (task_id,)
+    )
+
+    row = cursor.fetchone()
+
+    if row is None:
+        connection.close()
         return JSONResponse(
-            status_code=400,
-            content={"error": "Body must contain title and/or done"}
+            status_code=404,
+            content={"error": "Task not found"}
         )
 
-    return task_to_update
+    current_title = row[1]
+    current_done = bool(row[2])
+
+    new_title = body["title"].strip() if "title" in body else current_title
+    new_done = body["done"] if "done" in body else current_done
+
+    cursor.execute(
+        "UPDATE tasks SET title = ?, done = ? WHERE id = ?",
+        (new_title, new_done, task_id)
+    )
+
+    connection.commit()
+    connection.close()
+
+    return {
+        "id": task_id,
+        "title": new_title,
+        "done": new_done
+    }
 
 
 @app.delete("/tasks/{task_id}", status_code=204, summary="Delete a task")
 def delete_task(task_id: int):
-    for task in tasks:
-        if task["id"] == task_id:
-            tasks.remove(task)
-            return
+    connection = sqlite3.connect("tasks.db")
+    cursor = connection.cursor()
 
-    return JSONResponse(
-        status_code=404,
-        content={"error": f"Task {task_id} not found"}
+    cursor.execute(
+        "SELECT id FROM tasks WHERE id = ?",
+        (task_id,)
     )
+
+    row = cursor.fetchone()
+
+    if row is None:
+        connection.close()
+        return JSONResponse(
+            status_code=404,
+            content={"error": "Task not found"}
+        )
+
+    cursor.execute(
+        "DELETE FROM tasks WHERE id = ?",
+        (task_id,)
+    )
+
+    connection.commit()
+    connection.close()
+
+    return
