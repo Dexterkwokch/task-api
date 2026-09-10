@@ -1,14 +1,41 @@
+import sqlite3
+
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 app = FastAPI()
 
 
-tasks = [
-    {"id": 1, "title": "Buy groceries", "done": False},
-    {"id": 2, "title": "Study FastAPI", "done": True},
-    {"id": 3, "title": "Go to the gym", "done": False}
-]
+def init_db():
+    connection = sqlite3.connect("tasks.db")
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS tasks (
+            id INTEGER PRIMARY KEY,
+            title TEXT NOT NULL,
+            done BOOLEAN NOT NULL
+        )
+    """)
+
+    cursor.execute("SELECT COUNT(*) FROM tasks")
+    task_count = cursor.fetchone()[0]
+
+    if task_count == 0:
+        cursor.executemany(
+            "INSERT INTO tasks (title, done) VALUES (?, ?)",
+            [
+                ("Buy groceries", False),
+                ("Study FastAPI", True),
+                ("Go to the gym", False)
+            ]
+        )
+
+    connection.commit()
+    connection.close()
+
+
+init_db()
 
 
 @app.get("/", summary="Show API information")
