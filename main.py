@@ -115,17 +115,25 @@ async def create_task(request: Request):
             content={"error": "Title is required and cannot be empty"}
         )
 
-    next_id = max(task["id"] for task in tasks) + 1 if tasks else 1
+    connection = sqlite3.connect("tasks.db")
+    cursor = connection.cursor()
 
-    new_task = {
-        "id": next_id,
+    cursor.execute(
+        "INSERT INTO tasks (title, done) VALUES (?, ?)",
+        (title.strip(), False)
+    )
+
+    connection.commit()
+
+    new_task_id = cursor.lastrowid
+
+    connection.close()
+
+    return {
+        "id": new_task_id,
         "title": title.strip(),
         "done": False
     }
-
-    tasks.append(new_task)
-
-    return new_task
 
 
 @app.put("/tasks/{task_id}", summary="Update a task")
