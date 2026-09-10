@@ -56,19 +56,51 @@ def health():
 
 @app.get("/tasks", summary="List all tasks")
 def get_tasks():
+    connection = sqlite3.connect("tasks.db")
+    cursor = connection.cursor()
+
+    cursor.execute("SELECT id, title, done FROM tasks")
+    rows = cursor.fetchall()
+
+    connection.close()
+
+    tasks = []
+
+    for row in rows:
+        tasks.append({
+            "id": row[0],
+            "title": row[1],
+            "done": bool(row[2])
+        })
+
     return tasks
 
 
 @app.get("/tasks/{task_id}", summary="Get one task")
 def get_task(task_id: int):
-    for task in tasks:
-        if task["id"] == task_id:
-            return task
+    connection = sqlite3.connect("tasks.db")
+    cursor = connection.cursor()
 
-    return JSONResponse(
-        status_code=404,
-        content={"error": f"Task {task_id} not found"}
+    cursor.execute(
+        "SELECT id, title, done FROM tasks WHERE id = ?",
+        (task_id,)
     )
+
+    row = cursor.fetchone()
+
+    connection.close()
+
+    if row is None:
+        return JSONResponse(
+            status_code=404,
+            content={"error": "Task not found"}
+        )
+
+    return {
+        "id": row[0],
+        "title": row[1],
+        "done": bool(row[2])
+    }
 
 
 @app.post("/tasks", status_code=201, summary="Create a new task")
