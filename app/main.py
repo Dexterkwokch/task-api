@@ -38,7 +38,7 @@ def init_db():
 init_db()
 
 
-@app.get("/", summary="Show API information")
+@app.get("/", summary="Show API information") #FastAPI route
 def root():
     return {
         "name": "Task API",
