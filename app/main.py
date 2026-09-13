@@ -6,10 +6,18 @@ from fastapi.responses import JSONResponse
 from app.repository import PostgresTaskRepository
 from app.service import TaskService
 
+import os
+import redis
+
 
 load_dotenv()
 
 app = FastAPI()
+
+redis_client = redis.from_url(
+    os.getenv("REDIS_URL"),
+    decode_responses=True
+)
 
 repository = PostgresTaskRepository()
 service = TaskService(repository)
@@ -26,8 +34,11 @@ def root():
 
 @app.get("/health", summary="Check API health")
 def health():
+    redis_ok = redis_client.ping()
+
     return {
-        "status": "ok"
+        "status": "ok",
+        "redis": redis_ok
     }
 
 
